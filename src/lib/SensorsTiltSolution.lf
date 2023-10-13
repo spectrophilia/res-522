@@ -1,0 +1,45 @@
+/**
+ * Library reactors for the IMU on the 
+ * <a href="https://www.pololu.com/docs/0J86">Pololu 3pi+ 2040 robot</a>.
+ * Note that these reactors rely on the fact that they are executed in an unthreaded
+ * runtime. To adapt them for a threaded runtime, they will need to use mutual
+ * exclusion to ensure that multiple instances of the reactors are not simultaneously
+ * accessing the shared hardware resource.
+ * 
+ * @author Abhi Gundrala
+ * @author Edward A. Lee
+ */
+target C {
+  platform: {
+    name: "rp2040",
+    board: "pololu_3pi_2040_robot"
+  },
+  threading: false,
+  files: ["../../robot-lib/"],                      // Needed to find imu.h
+  cmake-include: ["../../robot-lib/robot-lib.txt"]  // Needed to find imu.h
+}
+
+preamble {=
+  #include <pico/stdlib.h>
+  #include <imu.h>
+  #include<math.h>
+
+  #define PI 3.14159265
+=}
+
+reactor Tilt {  
+    input: a:axes_data_t
+    output: roll:double, pitch:double
+
+    reaction(a) -> roll, pitch {=
+      double roll, pitch;
+
+      roll = asin(a.x / sqrt(a.x*a.x + a.y * a.y + a.z * a.z))
+      pitch = atan(a.y/a.z)
+
+        
+      lf_set(x, acc_data.x);
+      lf_set(y, acc_data.y);
+      lf_set(z, acc_data.z);   
+    =}
+  }

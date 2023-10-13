@@ -39,6 +39,7 @@ main reactor {
         static char buf1[17];
         static char buf2[17];
 
+        
         snprintf(buf0, 17, "x:%2.4f", a.x->value);
         snprintf(buf1, 17, "y:%2.4f", a.y->value);
         snprintf(buf2, 17, "z:%2.4f", a.z->value);
