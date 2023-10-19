@@ -1,4 +1,5 @@
 test/node_modules/
+pico-sdk/
 bin/
 target/
 src-gen/
