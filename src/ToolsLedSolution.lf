@@ -1,0 +1,28 @@
+#include <math.h>
+
+// #define 
+
+target C {
+    platform: {
+      name: "rp2040",
+      board: "pololu_3pi_2040_robot"
+    },
+    threading: false,
+  }
+  
+
+import LED from "lib/LED.lf"
+// import Display from "lib/Display.lf"
+
+main reactor {
+    timer t1(0, 250 ms);
+    state led_on:bool = false;
+    c = new LED();
+
+    reaction(t1) -> c.set {=
+        printf("IN TOOLS");
+        self->led_on = !self->led_on;
+        printf("LED state: %b\n", self->led_on);
+        lf_set(c.set, self->led_on);
+    =}
+}

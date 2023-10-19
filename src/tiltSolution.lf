@@ -33,44 +33,5 @@ main reactor {
         lf_set(d.line1, buf1);
         // lf_set(d.line2, buf2);
     =}
-    // reaction() {
-    //     ax = a.x->value;    
-    //     ay = a.y->value;    
-    //     az = a.z->value;    
-    // }
-    // a = new Accelerometer()
-    // d = new Display()
-    // timer t(0, 1000 msec)
-    // reaction(t) -> a.trigger {=
-    //     lf_set(a.trigger, true);
-    // =}
-    // reaction(a.x, a.y, a.z) -> d.line0, d.line1, d.line2 {=
-    //     static char buf0[17];
-    //     static char buf1[17];
-    //     static char buf2[17];
-    //     float ax;
-    //     float ay;
-    //     float az;
-    //     float roll;
-    //     float pitch;
 
-    //     ax = a.x->value;
-    //     ay = a.y->value;
-    //     az = a.z->value;
-
-    //     float M_PI = 3.14;
-
-    //     roll = atan2(ay, az);
-    //     pitch = atan2(ax, sqrt(ay * ay + az * az)) ;
-    //     roll = roll * 180.0 / M_PI;
-    //     pitch = pitch * 180.0 / M_PI;
-
-    //     snprintf(buf0, 17, "r:%2.3f", roll);
-    //     snprintf(buf1, 17, "p:%2.3f", pitch);
-    //     // snprintf(buf2, 17, "p:%2.3f", az);
-        
-    //     lf_set(d.line0, buf0);
-    //     lf_set(d.line1, buf1);
-    //     // lf_set(d.line2, buf2);
-    // =}
 }
