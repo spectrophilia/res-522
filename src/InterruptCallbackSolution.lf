@@ -1,0 +1,38 @@
+ target C {
+    platform: {
+      name: "rp2040",
+      board: "pololu_3pi_2040_robot"
+    },
+    threading: false,
+    keepalive: true
+  }
+
+
+preamble {=
+    #include <stdio.h>
+    #include <pico/stdlib.h>
+    #include <hardware/gpio.h>
+
+=}
+
+main reactor {
+    // timer t(0, 250 ms);
+    preamble {=
+        int add_42(int i) {
+          return i + 42;
+        }
+
+        void simplecb(bool level) {
+            if (level == true) {
+                // Button A was pressed, print a message
+                printf("Button A was pressed!\n");
+            }
+    }
+    =}
+
+    reaction(startup) {=
+        gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_IN);
+        gpio_set_irq_enabled_with_callback(PICO_DEFAULT_LED_PIN, GPIO_IRQ_LEVEL_HIGH, true, simplecb);
+      =}
+
+}

@@ -1,0 +1,65 @@
+
+// Imports for printing, integers, and gpio functions, macros, etc.
+target C {
+    platform: {
+      name: "rp2040",
+      board: "pololu_3pi_2040_robot"
+    },
+    threading: false,
+    keepalive: true
+  }
+
+  
+preamble {=
+    #include <stdio.h>
+    #include <stdint.h>
+    #include <pico/stdlib.h>
+    #include <hardware/gpio.h>
+  =}
+  
+  main reactor {
+  
+    physical action interrupt_action
+    
+    preamble {=
+      // Globals for physical action and time.
+      static void *interrupt_asserted;
+      static interval_t prev_time = 0;
+      static interval_t phy_time = 0;
+      
+      void callback(uint gpio, uint32_t event_mask){
+        if( ((lf_time_physical()-phy_time)/1000000) > 200 ){
+          printf("GPIO: %u, event received %u\n", gpio, event_mask);
+          lf_schedule(interrupt_asserted, 0);
+        }
+        phy_time = lf_time_physical();
+      }
+    =}
+    
+    // Startup reaction to configure and enable interrupt on pin 25.
+    reaction(startup)->interrupt_action {=
+      interrupt_asserted = interrupt_action;
+      // Set interrupt on pin 25 when it's pin goes low voltage and execute custom callback.
+      gpio_set_irq_enabled_with_callback(25,
+                                         GPIO_IRQ_EDGE_FALL,
+                                         true,
+                                         (void*)&callback);    
+    =}
+  
+  
+    reaction(interrupt_action) {=
+      // Get the current time.
+      interval_t current_time = lf_time_logical();
+      // Compute the elapsed time.
+      interval_t elapsed_time = current_time - prev_time;
+  
+      // Print initial time as 0, then elapsed in ms.
+      if(prev_time != 0) {
+        printf("Time elapsed since last push: %lldms\n", (elapsed_time/1000000));
+      }else {
+        printf("Time elapsed since last push: %lld\n", prev_time);    
+      }
+      // Save time of current push in the global variable.
+      prev_time = current_time;
+    =}
+  }

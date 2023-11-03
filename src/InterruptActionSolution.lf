@@ -1,0 +1,51 @@
+target C {
+    platform: {
+      name: "rp2040",
+      board: "pololu_3pi_2040_robot"
+    },
+    threading: false,
+    keepalive: true
+  }
+
+preamble {=
+    #include <stdio.h>
+    #include <pico/stdlib.h>
+    #include <hardware/gpio.h>
+=}
+
+main reactor {
+    physical action interrupt_action
+
+    preamble {=
+        static void *interrupt_asserted;
+        static interval_t prev_time = 0;
+        
+        void custom_callback(uint gpio, uint32_t event_mask) {
+            printf("GPIO: %u, event  detected %u\n", gpio, event_mask);
+            lf_schedule(interrupt_asserted, 0);
+        }
+    =}
+
+    reaction(startup)->interrupt_action {=
+        interrupt_asserted = interrupt_action;
+        gpio_set_irq_enabled_with_callback(25,
+                                    GPIO_IRQ_EDGE_FALL,
+                                    true,
+                                    (void*)&custom_callback);
+                                    
+    =}
+
+    reaction(interrupt_action) {=
+        interval_t current_time = lf_time_logical();
+        interval_t elapsed_time = current_time - prev_time;
+        
+        if(prev_time != 0) {
+            printf("time elapsed : %lld ms\n", (elapsed_time/1000000));
+        }
+        else {
+            printf("time elapsed \n", prev_time);
+        }
+        prev_time = current_time;
+        
+    =}
+}
