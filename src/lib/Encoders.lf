@@ -22,6 +22,7 @@ preamble {=
   #include <quadrature_encoder.pio.h>
 
   // pin defines
+  #define PI 3.14f
   #define RIGHT_ENCODER_AB 8
   #define LEFT_ENCODER_AB 12
   #define RIGHT_SM 0
@@ -44,5 +45,22 @@ reactor Encoders {
     int32_t lcount = -quadrature_encoder_get_count(pio0, LEFT_SM);
     lf_set(right, rcount);
     lf_set(left, lcount);
+  =}
+}
+
+
+reactor AngleToDistance {
+  input trigger:bool
+  output right_distance:float
+  output left_distance:float
+  enc = new Encoders()
+
+  reaction(trigger) -> enc.trigger {=
+    lf_set(enc.trigger, true);
+  =}
+
+  reaction(enc.right, enc.left) -> right_distance, left_distance {=
+    lf_set(right_distance, (enc.right->value/360) * PI * 3.175);
+    lf_set(left_distance, (enc.left->value/360) * PI * 3.175);
   =}
 }

@@ -14,11 +14,12 @@ target C {
 
 import Display from "lib/Display.lf"
 import Motors from "lib/Motors.lf"
+import AngleToDistance from "lib/Encoders.lf"
 
 reactor Robot {
   input drive:bool       // Toggle mode.
   output notify:string   // Notify of mode change.
-
+  
   reaction(startup) -> notify {=
     lf_set(notify, "INIT");
   =}
@@ -43,14 +44,32 @@ reactor Robot {
 }
 
 main reactor {
-  timer t(0, 2 sec)
+  timer t(0, 100 ms)
   state drive:bool = false
   robot = new Robot()
   display = new Display()
-  reaction(t) -> robot.drive {=
+  dist = new AngleToDistance()
+  m = new Motors()
+
+  reaction(t) -> robot.drive, m.left_power, m.right_power, dist.trigger {=
       lf_set(robot.drive, self->drive);
-      // Toggle the drive state variable for next time.
-      self->drive = !self->drive;
+      lf_set(dist.trigger, true);
+      if (self->drive) {
+        lf_set(m.right_power, 0.1f);
+        lf_set(m.left_power, 0.1f);
+      }
+  =}
+
+  reaction(dist.left_distance) -> display.line1 {=
+    if (dist.left_distance < 10 ) {
+      self->drive = false;
+    }
+    else if (dist.left_distance > 50) {
+        self->drive = false;
+    }
+    static char buf[17];
+    snprintf(buf, 17, "L: %f", dist.left_distance->value);
+    lf_set(display.line1, buf);
   =}
   robot.notify -> display.line0;
 }
