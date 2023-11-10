@@ -19,13 +19,26 @@ import AngleToDistance from "lib/Encoders.lf"
 reactor Robot {
   input drive:bool       // Toggle mode.
   output notify:string   // Notify of mode change.
+  input distance_limit: float
+  input trigger: bool
+  output dist_travelled: float
+  state dist = new AngleToDistance()
+
+  reaction(trigger) -> dist.trigger, dist_travelled {=
+     lf_set(dist.trigger, true);
+     lf_set(dist_travelled, dist.left_distance);
+   =}
   
   reaction(startup) -> notify {=
     lf_set(notify, "INIT");
   =}
 
+  reaction(dist.left_distance) -> dist_travelled {=
+    lf_set(dist_travelled, dist.left_distance->value);
+  =}
+
   initial mode STOPPED {
-    reaction(drive) -> DRIVING, notify {=
+    reaction(drive, distance_limit) -> DRIVING, notify {=
       if (drive->value) {
         lf_set_mode(DRIVING);
         lf_set(notify, "DRIVING");
@@ -34,8 +47,8 @@ reactor Robot {
   }
 
   mode DRIVING {
-    reaction(drive) -> STOPPED, notify {=
-      if (!drive->value) {
+    reaction(drive, distance_limit, dist.left_distance) -> STOPPED, notify {=
+      if (!drive->value || dist.left_distance-> value >= distance_limit->value) {
         lf_set_mode(STOPPED);
         lf_set(notify, "STOPPED");
       }
@@ -44,32 +57,30 @@ reactor Robot {
 }
 
 main reactor {
-  timer t(0, 100 ms)
+  timer t(0, 1 sec)
   state drive:bool = false
+  state distance_limit: float = 10.0
   robot = new Robot()
   display = new Display()
-  dist = new AngleToDistance()
   m = new Motors()
 
-  reaction(t) -> robot.drive, m.left_power, m.right_power, dist.trigger {=
+  reaction(t) -> robot.drive, m.left_power, m.right_power, robot.distance_limit, display.line1 {=
       lf_set(robot.drive, self->drive);
-      lf_set(dist.trigger, true);
       if (self->drive) {
         lf_set(m.right_power, 0.1f);
         lf_set(m.left_power, 0.1f);
+      } else {
+      lf_set(m.right_power, 0.0f);
+      lf_set(m.left_power, 0.0f);
       }
+      self->drive = !self->drive;
   =}
 
-  reaction(dist.left_distance) -> display.line1 {=
-    if (dist.left_distance < 10 ) {
-      self->drive = false;
-    }
-    else if (dist.left_distance > 50) {
-        self->drive = false;
-    }
-    static char buf[17];
-    snprintf(buf, 17, "L: %f", dist.left_distance->value);
-    lf_set(display.line1, buf);
+  reaction(robot.dist_travelled) -> display.line1 {=
+    static char buf0[17];
+    snprintf(buf0, 17, "L: %.4f cm", robot.dist_travelled->value);
+    lf_set(display.line1, buf0);
   =}
+
   robot.notify -> display.line0;
 }

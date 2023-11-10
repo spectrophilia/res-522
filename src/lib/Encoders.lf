@@ -60,7 +60,7 @@ reactor AngleToDistance {
   =}
 
   reaction(enc.right, enc.left) -> right_distance, left_distance {=
-    lf_set(right_distance, (enc.right->value/360) * PI * 3.175);
-    lf_set(left_distance, (enc.left->value/360) * PI * 3.175);
+    lf_set(right_distance, ((float)enc.right->value/360) * PI * 3.175);
+    lf_set(left_distance, ((float)enc.left->value/360) * PI * 3.175);
   =}
 }
