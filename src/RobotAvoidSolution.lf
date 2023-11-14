@@ -11,6 +11,7 @@ import Motors from "lib/Motors.lf"
 // import AngleToDistance from "lib/Encoders.lf"
 import Encoders from "lib/Encoders.lf"
 import GyroAngle from "lib/IMU.lf"
+import Bump from "lib/Bump.lf"
 
 reactor Robot {
   input turn:bool
@@ -24,7 +25,7 @@ reactor Robot {
       if(turn->value) {
         lf_set_mode(TURNING);
         lf_set(left_pwr, 0.0f);
-        lf_set(right_pwr, 0.1f);
+        lf_set(right_pwr, -0.1f);
       }
     =}
   }
@@ -48,6 +49,9 @@ main reactor {
   // dist = new AngleToDistance()
   gyro = new GyroAngle()
   encoder = new Encoders()
+  bump = new Bump()
+
+  logical action clear;
 
   preamble {=
     #include <stdio.h>
@@ -88,6 +92,26 @@ main reactor {
       lf_set(robot.turn, true);
       w_d=wheel_dist;
     }
+  =}
+
+  reaction(bump.left) -> robot.turn, robot.move, display.line2, clear {=
+    printf("triggered bump \n");
+    static char buf[17];
+    snprintf(buf, 17, "ENC: %2.2f", 0.0f);
+    lf_set(display.line2, buf);
+    lf_set(robot.turn, true);
+    w_d = w_d + 50;
+    lf_schedule(clear, SEC(2));
+  =}
+
+  reaction(bump.right) -> robot.turn, robot.move, display.line2, clear {=
+    printf("triggered bump \n");
+    static char buf[17];
+    snprintf(buf, 17, "ENC: %2.2f", 0.0f);
+    lf_set(display.line2, buf);
+    lf_set(robot.turn, true);
+    w_d = w_d + 50;
+    lf_schedule(clear, SEC(2));
   =}
 
   robot.left_pwr -> m.left_power;
