@@ -1,14 +1,3 @@
-/**
- * Display the outputs from the line sensors on the
- * <a href="https://www.pololu.com/docs/0J86">Pololu 3pi+ 2040 robot</a>.
- * This program spends the first 10 seconds in calibration mode, during which
- * you should move the robot over the light and dark areas that you would like
- * it to detect.  It then switches into measurement mode and displays the
- * measured reflectance of the five IR sensors.
- *
- * @author Abhi Gundrala
- * @author Edward A. Lee
- */
 target C {
   platform: {
     name: "rp2040",
@@ -20,6 +9,13 @@ target C {
 import Line from "lib/Line.lf"
 import Display from "lib/Display.lf"
 
+
+preamble {=
+  #include <stdio.h>
+  #include <pico/stdlib.h>
+  #include <hardware/gpio.h>
+  #define THRESH 500
+=}
 
 main reactor(calibration_time: time = 10 s, sample_period: time = 100 ms) {
   line = new Line()
@@ -55,9 +51,15 @@ main reactor(calibration_time: time = 10 s, sample_period: time = 100 ms) {
     static char buf0[17];
     static char buf1[17];
     static char buf2[17];
-    snprintf(buf0, 17, "0:%4d 1:%4d", line.reflect->value[0], line.reflect->value[1]);
-    snprintf(buf1, 17, "2:%4d 3:%4d", line.reflect->value[2], line.reflect->value[3]);
-    snprintf(buf2, 17, "4:%4d", line.reflect->value[4]);
+    if(line.reflect->value[0]> THRESH && line.reflect->value[1] > THRESH) {
+      snprintf(buf0, 17, "left");
+    }
+    else if (line.reflect->value[1] > THRESH && line.reflect->value[2] > THRESH && line.reflect->value[3] > THRESH) {
+      snprintf(buf0, 17, "center");
+    }
+    else if(line.reflect->value[3]> THRESH && line.reflect->value[4] > THRESH) {
+      snprintf(buf0, 17, "right");
+    }
     lf_set(disp.line0, buf0);
     lf_set(disp.line1, buf1);
     lf_set(disp.line2, buf2);
