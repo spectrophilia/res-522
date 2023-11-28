@@ -12,19 +12,21 @@ import Motors from "lib/Motors.lf"
 import Encoders from "lib/Encoders.lf"
 import GyroAngle from "lib/IMU.lf"
 import Tilt from "lib/tilt.lf"
+import MotorsWithFeedback from "lib/MotorsWithFeedback.lf"
 
 
 reactor Robot {
   input move:bool
+  input stop:bool
   input turn_r:bool
   input turn_l:bool
   input turn:bool
-
-
-
+  input degree:float
+  input rotating:bool
 
   output left_pwr:float
   output right_pwr:float
+  input rotate:bool
 
   gyro = new GyroAngle()
 
@@ -49,21 +51,21 @@ reactor Robot {
     =}
   }
 
-  // mode REVERSE {
-  //   reaction(degree,gyro.z,rotating) -> DRIVING, left_pwr, right_pwr {=
-  //     rotating = true;
-  //     if(abs((gyro.z->value)-degree->value)>180) {
-  //       lf_set_mode(DRIVING);
-  //       move, true);
-  //       lf_set(left_pwr, 0.15f);
-  //       lf_set(right_pwr, 0.15f);
-  //       }
-  //   =}
-  // }
+  mode REVERSE {
+    reaction(degree,gyro.z,rotate,turn) -> DRIVING, left_pwr, right_pwr {=
+      lf_set(rotate,true);
+      if(!turn->value) {
+        // lf_set(rotate, false);
+        lf_set_mode(DRIVING);
+        lf_set(left_pwr, 0.15f);
+        lf_set(right_pwr, 0.15f);
+      }
+    =}
+  }
 
   initial mode DRIVING {
-    reaction(move, turn_r, turn_l,turn) -> RIGHT, LEFT, left_pwr, right_pwr {=
-      // printf("Inside turn reaction of driviing");
+    reaction(move, turn_r, turn_l,turn,rotate) -> RIGHT, LEFT,REVERSE,left_pwr, right_pwr {=
+
       if(move->value){
         lf_set(left_pwr, 0.15f);
         lf_set(right_pwr, 0.15f);
@@ -78,26 +80,26 @@ reactor Robot {
         lf_set(left_pwr, -0.15f);
         lf_set(right_pwr, 0.0f);
       }
-      // if(turn->value){
-      //   lf_set_mode(REVERSE);
-      //   lf_set(left_pwr, -0.15f);
-      //   lf_set(right_pwr, 0.0f);
-      // }
+      if(turn->value){
+        lf_set_mode(REVERSE);
+        lf_set(left_pwr, -0.15f);
+        lf_set(right_pwr, 0.0f);
+      }
     =}
   }
 }
 
 
-
-main reactor(calibration_time: time = 10 s, sample_period: time = 100 ms) {
+main reactor(calibration_time: time = 10  s, sample_period: time = 100 ms) {
   line = new Line()
   disp = new Display()
   robot = new Robot()
   m = new Motors()
+  encoder = new Encoders()
   // dist = new AngleToDistance()
   gyro = new GyroAngle()
-  encoder = new Encoders()
   T = new Tilt()
+  MWF = new MotorsWithFeedback()
 
   timer t(0, sample_period)
   // Timer used to display seconds.
@@ -109,7 +111,6 @@ main reactor(calibration_time: time = 10 s, sample_period: time = 100 ms) {
   state w_d: float
   state move: bool = false
 
-  
 
 
   preamble {=
@@ -117,13 +118,15 @@ main reactor(calibration_time: time = 10 s, sample_period: time = 100 ms) {
     #include <pico/stdlib.h>
     #include <hardware/gpio.h>
     #define THRESH 550
+    float init_z_angle = 0.0f;
   =}
   
 
-  reaction(startup) -> disp.line0, disp.line1, disp.line2 {=
+  reaction(startup) -> disp.line0, disp.line1, disp.line2, robot.rotate {=
     lf_set(disp.line0, "CALIBRATING");
     lf_set(disp.line1, "Roll robot over");
     lf_set(disp.line2, "light and dark.");
+    lf_set(robot.rotate, false);
 
   =}
 
@@ -142,103 +145,63 @@ main reactor(calibration_time: time = 10 s, sample_period: time = 100 ms) {
     lf_set(line.trigger, true);
   =}
 
-  timer t1(0, 100 ms)
+  timer t1(calibration_time, 50 ms)
   reaction(t1) -> encoder.trigger, gyro.trigger, T.trigger{=
     lf_set(encoder.trigger, true);
     lf_set(T.trigger, true);
     lf_set(gyro.trigger, true);
-  =}
+    // lf_set(MWF.trigger, true);
+    =}
 
-  // reaction(T.pitch, gyro.z) -> robot.turn_r, robot.move{=
-  // if (T.pitch > -3 && T.pitch < 3 && !self->rotate)
-  // {
-  //   snprintf(buf1, 17, "idhar");
-  //   self->gz = gyro.z->value;
-  //   lf_set(robot.turn_r, true);
-  //   self->rotate = true;
-  // }
-  // else if(abs((gyro.z->value)-self->gz)>180 && self->rotate){
-  //   lf_set(robot.turn_r, false);
-  //   self->rotate = false;
-  // }
-  // =}
 
-  reaction(line.reflect,T.roll, T.pitch, gyro.z, encoder.left) -> robot.turn, robot.turn_r, robot.move, robot.turn_l, disp.line0, disp.line1, disp.line2 {=
+  reaction(line.reflect,T.roll, T.pitch, gyro.z,encoder.right,encoder.left) -> MWF.left, MWF.right, MWF.left_speed, MWF.right_speed, robot.rotate, robot.degree, robot.turn, robot.turn_r, robot.move, robot.stop, robot.turn_l, disp.line0, disp.line1, disp.line2 {=
     static char buf1[17];
     static char buf2[17];
     static char buf0[17];
 
-
     lf_set(robot.move, true);
-    snprintf(buf0, 17, "pitch:%2.4f", T.pitch->value);
-
-
-    // if(line.reflect->value[0]> THRESH && line.reflect->value[1] > THRESH) {
-    //   // snprintf(buf0, 17, "Turn R");
-    //   lf_set(robot.turn_r, true);
-    // }
-    // else if(!self->rotate){
-    //   lf_set(robot.turn_r, false);
-    // }
+    lf_set(MWF.left,encoder.left->value);
+    lf_set(MWF.right,encoder.right->value);
 
 
 
-    // if(line.reflect->value[3]> THRESH && line.reflect->value[4] > THRESH) {
-    //   // snprintf(buf0, 17, "Turn L");
-    //   lf_set(robot.turn_l, true);
-    // }
-    // else if(!self->rotate){
-    //   lf_set(robot.turn_l, false);
-    // }
+    if(line.reflect->value[0]> THRESH && line.reflect->value[1] > THRESH) {
+      // snprintf(buf0, 17, "Turn R");
+      lf_set(robot.turn_r, true);
+    }
+    else if(!self->rotate){
+      lf_set(robot.turn_r, false);
+    }
 
-  if (T.pitch->value > -3 && T.pitch->value < 3 && !self->rotate)
+    if(line.reflect->value[3]> THRESH && line.reflect->value[4] > THRESH) {
+      // snprintf(buf0, 17, "Turn L");
+      lf_set(robot turn_l, true);
+    }
+    else if(!self->rotate){
+      lf_set(robot.turn_l, false);
+    }
+
+
+
+  if (T.pitch->value > -1.5 && T.pitch->value < 1.5 && !robot.rotate->value) 
   {
-    snprintf(buf1, 17, "idhar");
+
+    // snprintf(buf1, 17, "idhar");
     self->gz = gyro.z->value;
-    lf_set(robot.turn_r, true);
-    self->rotate = true;
+    // snprintf(buf1, 17, " %.1f", gyro.z->value);
+    lf_set(robot.turn, true);
   }
+  else if(robot.rotate->value && abs((gyro.z->value)-self->gz)>=180){
+    // snprintf(buf1, 17, "baby");
 
-  else if(abs((gyro.z->value)-self->gz)>180 && self->rotate){
-
-    if (!self->move){
-      self->w_d = ((float)encoder.left->value/360) * 3.14 * 3.175;
-      self->move = true;
-    }
-
-    else{
-      float wheel_dist = ((float)encoder.left->value/360) * 3.14 * 3.175;
-      if(wheel_dist-self->w_d < 50) {
-        snprintf(buf1, 17, "hogy1");
-
-          lf_set(robot.turn_l, false);
-          lf_set(robot.turn_r, false);
-          }
-        else{
-          self->move = false;
-          self->rotate = false;
-        }
-    }
-    }
-    // snprintf(buf1, 17, "done");
-    // printf("triggered encoder %d\n", encoder.left->value);
-    // static char buf[17];
-    // snprintf(buf, 17, "ENC: %2.2f", wheel_dist-w_d);
-    // lf_set(display.line2, buf);
-     lf_set(robot.turn_r, false);
-    self->rotate = false;
-    
-   
-    // }
-
-  lf_set(disp.line0, buf0);
+      lf_set(robot.turn, false);
+  
+    lf_set(disp.line0, buf0);
     lf_set(disp.line1, buf1);
     lf_set(disp.line2, buf2);
 
 
   =}
-
-
 
 robot.left_pwr -> m.left_power;
 robot.right_pwr -> m.right_power;
