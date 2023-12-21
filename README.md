@@ -1,3 +1,4 @@
+## Realtime embedded systems CS522 course code
 # Template for the Lingua Franca RP2040 target platform
 This repo is a template for [Lingua Franca](https://www.lf-lang.org/) (LF) projects using the bare metal RP2040 target platform such as found on the [Raspberry Pi Pico board](https://www.raspberrypi.com/products/raspberry-pi-pico/) and the [Pololu 3pi+ 2040 robot](https://www.pololu.com/docs/0J86).
 This template is particularly well suited for the [LF Embedded Lab](https://www.lf-lang.org/lf-embedded-lab/) exercises.
